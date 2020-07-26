@@ -20,7 +20,10 @@ io.on('connection', socket => {
     socket.on('join-room', (roomId, userId) => {  //event
         socket.join(roomId); //joining room with current user
         socket.to(roomId).broadcast.emit('user-connected', userId) //broadcastsa msg to all the userIdjoined
-        // console.log(roomId, userId)
+
+        socket.on('disconnect', () => {
+            socket.to(roomId).broadcast.emit('user-disconnected', userId)
+        })
     })
 })
 

@@ -7,12 +7,29 @@ const myPeer = new Peer(undefined, {
 
 const myVideo = document.createElement('video');
 myVideo.muted = true; //mutes for self
+const peers = {};
 
 navigator.mediaDevices.getUserMedia({
     video: true,
     audio: true
 }).then(stream => {
- addVideoStream(myVideo, stream)
+    addVideoStream(myVideo, stream)
+
+    //attending new call on existing video platform
+    myPeer.on('call', call => {
+        call.answer(stream)
+
+        //adding video to new user window
+        const video = document.createElement('video')
+        call.on('stream', userVideoStream => {
+            addVideoStream(video, userVideoStream)
+        })
+    })
+
+    //to connect to other users
+    socket.on('user-connected', userId => {
+        connectToNewUser(userId, stream)
+    })
 })
 
 //send an event to server
@@ -24,6 +41,27 @@ socket.on('user-connected', userId => { //listening to event
     console.log(`User connected: ${userId}`)
 })
 
+//closing connection
+socket.on('user-disconnected', userId => {
+    if (peers[userId]) peers[userId].close()
+})
+
+function connectToNewUser(userId, stream) {
+    const call = myPeer.call(userId, stream)
+    const video = document.createElement('video')
+
+    //adding new user video 
+    call.on('stream', userVideoStream => {
+        addVideoStream(video, userVideoStream)
+    })
+    //disconnecting video on call drop
+    call.on('close', () => {
+        video.remove()
+    })
+
+    peers[userId] = call;
+}
+
 function addVideoStream(video, stream) {
     video.srcObject = stream;
     video.addEventListener('loadedmetadata', () => {
@@ -31,3 +69,4 @@ function addVideoStream(video, stream) {
     })
     videoGrid.append(video)
 }
+
